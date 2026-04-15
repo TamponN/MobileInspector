@@ -1,0 +1,40 @@
+# Built files
+/build
+/app/build
+/.gradle
+/.kotlin
+
+# IDE
+/.idea
+*.iml
+
+# Secrets & local config
+local.properties
+google-services.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+replay_pid*.log
+
+# Kotlin
+*.kotlin_module
+
+# APK / AAB
+*.apk
+*.aab
+*.ap_
+
+# Proguard
+/app/proguard-rules.pro.bak
+
+# Captures
+captures/
+
+# Documentation (not part of source)
+*.md
+!README.md

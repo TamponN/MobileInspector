@@ -44,6 +44,18 @@ android {
         compose = true
         buildConfig = true
     }
+
+    androidResources {
+        noCompress += "tflite"
+    }
+}
+
+// Workaround: TFLite 2.14.0 имеет дублирующиеся namespace между core и api артефактами
+configurations.all {
+    resolutionStrategy {
+        force("org.tensorflow:tensorflow-lite:2.14.0")
+        force("org.tensorflow:tensorflow-lite-support:0.4.4")
+    }
 }
 
 dependencies {
@@ -100,9 +112,11 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.4.1")
     implementation("androidx.camera:camera-lifecycle:1.4.1")
     implementation("androidx.camera:camera-view:1.4.1")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 
-    // ML Kit (OCR, replaces Google Vision)
-    implementation("com.google.mlkit:text-recognition:16.0.1")
+    // TFLite (custom YOLOv8n model for meter OCR)
+    implementation("org.tensorflow:tensorflow-lite:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")

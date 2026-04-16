@@ -73,9 +73,9 @@ class RouteRepositoryImpl @Inject constructor(
     override suspend fun updateTestimony(
         routeUuid: String,
         subscriberUuid: String,
-        deviceKey: String,
-        scaleKey: String,
-        testimonyKey: String,
+        deviceIndex: Int,
+        scaleIndex: Int,
+        testimonyIndex: Int,
         currentValue: String,
         picturePath: String?,
     ) {
@@ -84,14 +84,14 @@ class RouteRepositoryImpl @Inject constructor(
                 subscribers = route.subscribers.map { sub ->
                     if (sub.uuid != subscriberUuid) return@map sub
                     sub.copy(
-                        meteringDevices = sub.meteringDevices.map { dev ->
-                            if (dev.key != deviceKey) return@map dev
+                        meteringDevices = sub.meteringDevices.mapIndexed { dIdx, dev ->
+                            if (dIdx != deviceIndex) return@mapIndexed dev
                             dev.copy(
-                                scales = dev.scales.map { scale ->
-                                    if (scale.key != scaleKey) return@map scale
+                                scales = dev.scales.mapIndexed { sIdx, scale ->
+                                    if (sIdx != scaleIndex) return@mapIndexed scale
                                     scale.copy(
-                                        testimonies = scale.testimonies.map { t ->
-                                            if (t.key != testimonyKey) return@map t
+                                        testimonies = scale.testimonies.mapIndexed { tIdx, t ->
+                                            if (tIdx != testimonyIndex) return@mapIndexed t
                                             t.copy(
                                                 currentTestimony = currentValue,
                                                 picturePath = picturePath ?: t.picturePath,

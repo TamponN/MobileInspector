@@ -32,9 +32,9 @@ class CameraViewModel @Inject constructor(
 
     val routeUuid: String = checkNotNull(savedStateHandle["routeUuid"])
     val subscriberUuid: String = checkNotNull(savedStateHandle["subscriberUuid"])
-    val deviceKey: String = checkNotNull(savedStateHandle["deviceKey"])
-    val scaleKey: String = checkNotNull(savedStateHandle["scaleKey"])
-    val testimonyKey: String = checkNotNull(savedStateHandle["testimonyKey"])
+    val deviceIndex: String = checkNotNull(savedStateHandle["deviceKey"])
+    val scaleIndex: String = checkNotNull(savedStateHandle["scaleKey"])
+    val testimonyIndex: String = checkNotNull(savedStateHandle["testimonyKey"])
 
     private val _uiState = MutableStateFlow(CameraUiState())
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()
@@ -48,24 +48,27 @@ class CameraViewModel @Inject constructor(
                 _uiState.update { it.copy(recognizedText = recognized) }
 
                 // Для actcheck — только OCR, без сохранения в репозиторий
-                if (scaleKey != "actcheck") {
+                if (scaleIndex != "actcheck") {
                     routeRepository.updateTestimony(
                         routeUuid = routeUuid,
                         subscriberUuid = subscriberUuid,
-                        deviceKey = deviceKey,
-                        scaleKey = scaleKey,
-                        testimonyKey = testimonyKey,
+                        deviceIndex = deviceIndex.toInt(),
+                        scaleIndex = scaleIndex.toInt(),
+                        testimonyIndex = testimonyIndex.toInt(),
                         currentValue = recognized,
                         picturePath = photoFile.absolutePath,
                     )
                 }
                 _uiState.update { it.copy(isProcessing = false, photoSaved = true) }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(isProcessing = false, error = "Ошибка распознавания: ${e.message}")
-                }
+                _uiState.update { it.copy(isProcessing = false, error = "Ошибка распознавания: ${e.message}") }
             }
         }
+    }
+
+    /** Сброс состояния для повторного снимка */
+    fun resetForRetake() {
+        _uiState.update { CameraUiState() }
     }
 
     fun clearError() = _uiState.update { it.copy(error = null) }

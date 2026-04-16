@@ -1,6 +1,11 @@
 package com.bestplus.mobileinspector.ui.camera
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -12,24 +17,26 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FlashOff
+import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 /**
  * Экран камеры для захвата фотографии показания счётчика.
@@ -48,10 +55,25 @@ fun CameraScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val imageCapture = remember { ImageCapture.Builder().build() }
+    var camera by remember { mutableStateOf<Camera?>(null) }
+    var flashEnabled by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.photoSaved) {
-        if (uiState.photoSaved) {
-            onPhotoCapturedAndProcessed(uiState.recognizedText)
+    // --- Permission handling ---
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        hasCameraPermission = granted
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -64,6 +86,20 @@ fun CameraScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
+                actions = {
+                    if (camera?.cameraInfo?.hasFlashUnit() == true) {
+                        IconButton(onClick = {
+                            flashEnabled = !flashEnabled
+                            camera?.cameraControl?.enableTorch(flashEnabled)
+                        }) {
+                            Icon(
+                                imageVector = if (flashEnabled) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                                contentDescription = if (flashEnabled) "Выключить вспышку" else "Включить вспышку",
+                                tint = if (flashEnabled) Color.Yellow else Color.White,
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Black,
                     titleContentColor = Color.White,
@@ -72,6 +108,31 @@ fun CameraScreen(
             )
         },
     ) { padding ->
+        // If no permission — show request screen
+        if (!hasCameraPermission) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "Для съёмки показаний необходим доступ к камере",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                        Text("Предоставить доступ")
+                    }
+                }
+            }
+            return@Scaffold
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -91,7 +152,7 @@ fun CameraScreen(
                             }
                             try {
                                 cameraProvider.unbindAll()
-                                cameraProvider.bindToLifecycle(
+                                camera = cameraProvider.bindToLifecycle(
                                     lifecycleOwner,
                                     CameraSelector.DEFAULT_BACK_CAMERA,
                                     preview,
@@ -106,8 +167,64 @@ fun CameraScreen(
                 modifier = Modifier.fillMaxSize(),
             )
 
-            // OCR result overlay
-            if (uiState.recognizedText.isNotBlank() && !uiState.isProcessing) {
+            // --- Confirmation overlay after OCR ---
+            if (uiState.photoSaved && uiState.recognizedText.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.75f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                "Распознано показание:",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = uiState.recognizedText,
+                                style = MaterialTheme.typography.displaySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(Modifier.height(24.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.resetForRetake() },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(Icons.Default.Refresh, contentDescription = null)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Переснять")
+                                }
+                                Button(
+                                    onClick = { onPhotoCapturedAndProcessed(uiState.recognizedText) },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(Icons.Default.Check, contentDescription = null)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Подтвердить")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // OCR result overlay (while processing or empty result)
+            else if (uiState.recognizedText.isNotBlank() && !uiState.isProcessing && !uiState.photoSaved) {
                 Card(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
@@ -163,25 +280,27 @@ fun CameraScreen(
                 }
             }
 
-            // Capture button
-            FloatingActionButton(
-                onClick = {
-                    if (!uiState.isProcessing) {
-                        capturePhoto(context, imageCapture) { file ->
-                            viewModel.onPhotoCaptured(file)
+            // Capture button (hidden when confirmation is shown)
+            if (!uiState.photoSaved) {
+                FloatingActionButton(
+                    onClick = {
+                        if (!uiState.isProcessing) {
+                            capturePhoto(context, imageCapture) { file ->
+                                viewModel.onPhotoCaptured(file)
+                            }
                         }
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 32.dp),
-                containerColor = MaterialTheme.colorScheme.primary,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = "Сделать фото",
-                    modifier = Modifier.size(32.dp),
-                )
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 32.dp),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = "Сделать фото",
+                        modifier = Modifier.size(32.dp),
+                    )
+                }
             }
         }
     }

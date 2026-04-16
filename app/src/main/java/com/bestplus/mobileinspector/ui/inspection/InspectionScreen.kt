@@ -40,7 +40,7 @@ fun InspectionScreen(
     routeUuid: String,
     subscriberUuid: String,
     onBack: () -> Unit,
-    onCameraClick: (deviceKey: String, scaleKey: String, testimonyKey: String) -> Unit = { _, _, _ -> },
+    onCameraClick: (deviceIndex: String, scaleIndex: String, testimonyIndex: String) -> Unit = { _, _, _ -> },
     actCheckOcrResult: String = "",
     onActCheckOcrConsumed: () -> Unit = {},
     viewModel: InspectionViewModel = hiltViewModel(),
@@ -108,13 +108,13 @@ fun InspectionScreen(
             }
 
             // Приборы учёта
-            itemsIndexed(sub.meteringDevices, key = { idx, dev -> dev.uuidDevice.ifBlank { "device_$idx" } }) { _, device ->
+            itemsIndexed(sub.meteringDevices, key = { idx, dev -> dev.uuidDevice.ifBlank { "device_$idx" } }) { deviceIdx, device ->
                 DeviceCard(
                     device = device,
                     autoShowActCheck = device.key == uiState.actCheckPendingDeviceKey,
                     actCheckDraft = if (device.key == uiState.actCheckPendingDeviceKey) uiState.actCheckDraft else null,
-                    onTestimonyChange = { scaleKey, testimonyKey, value ->
-                        viewModel.updateTestimony(device.key, scaleKey, testimonyKey, value)
+                    onTestimonyChange = { scaleIdx, testimonyIdx, value ->
+                        viewModel.updateTestimony(deviceIdx, scaleIdx, testimonyIdx, value)
                     },
                     onActCheckSave = { actCheck ->
                         viewModel.saveActCheck(device.key, actCheck)
@@ -123,12 +123,12 @@ fun InspectionScreen(
                     onActAccessSave = { actAccess ->
                         viewModel.saveActAccess(device.key, actAccess)
                     },
-                    onCameraClick = { scaleKey, testimonyKey ->
-                        onCameraClick(device.key, scaleKey, testimonyKey)
+                    onCameraClick = { scaleIdx, testimonyIdx ->
+                        onCameraClick(deviceIdx.toString(), scaleIdx.toString(), testimonyIdx.toString())
                     },
                     onActCheckCameraClick = { draft ->
                         viewModel.setActCheckDraftForCamera(device.key, draft)
-                        onCameraClick(device.key, "actcheck", "fact")
+                        onCameraClick(deviceIdx.toString(), "actcheck", "fact")
                     },
                 )
             }
@@ -163,10 +163,10 @@ private fun DeviceCard(
     device: MeteringDevice,
     autoShowActCheck: Boolean = false,
     actCheckDraft: com.bestplus.mobileinspector.domain.model.ActCheck? = null,
-    onTestimonyChange: (scaleKey: String, testimonyKey: String, value: String) -> Unit,
+    onTestimonyChange: (scaleIndex: Int, testimonyIndex: Int, value: String) -> Unit,
     onActCheckSave: (com.bestplus.mobileinspector.domain.model.ActCheck) -> Unit = {},
     onActAccessSave: (com.bestplus.mobileinspector.domain.model.ActAccess) -> Unit = {},
-    onCameraClick: (scaleKey: String, testimonyKey: String) -> Unit = { _, _ -> },
+    onCameraClick: (scaleIndex: Int, testimonyIndex: Int) -> Unit = { _, _ -> },
     onActCheckCameraClick: (com.bestplus.mobileinspector.domain.model.ActCheck) -> Unit = {},
 ) {
     var showActCheck by remember { mutableStateOf(false) }
@@ -191,14 +191,14 @@ private fun DeviceCard(
 
             Spacer(Modifier.height(8.dp))
 
-            device.scales.forEach { scale ->
+            device.scales.forEachIndexed { scaleIdx, scale ->
                 ScaleSection(
                     scale = scale,
-                    onTestimonyChange = { testimonyKey, value ->
-                        onTestimonyChange(scale.key, testimonyKey, value)
+                    onTestimonyChange = { testimonyIdx, value ->
+                        onTestimonyChange(scaleIdx, testimonyIdx, value)
                     },
-                    onCameraClick = { testimonyKey ->
-                        onCameraClick(scale.key, testimonyKey)
+                    onCameraClick = { testimonyIdx ->
+                        onCameraClick(scaleIdx, testimonyIdx)
                     },
                 )
             }
@@ -255,8 +255,8 @@ private fun DeviceCard(
 @Composable
 private fun ScaleSection(
     scale: Scale,
-    onTestimonyChange: (testimonyKey: String, value: String) -> Unit,
-    onCameraClick: (testimonyKey: String) -> Unit = {},
+    onTestimonyChange: (testimonyIndex: Int, value: String) -> Unit,
+    onCameraClick: (testimonyIndex: Int) -> Unit = {},
 ) {
     Column {
         if (scale.nameScale.isNotBlank()) {
@@ -267,11 +267,11 @@ private fun ScaleSection(
             )
         }
 
-        scale.testimonies.forEach { testimony ->
+        scale.testimonies.forEachIndexed { tIdx, testimony ->
             TestimonyRow(
                 testimony = testimony,
-                onValueChange = { value -> onTestimonyChange(testimony.key, value) },
-                onCameraClick = { onCameraClick(testimony.key) },
+                onValueChange = { value -> onTestimonyChange(tIdx, value) },
+                onCameraClick = { onCameraClick(tIdx) },
             )
         }
     }

@@ -15,13 +15,13 @@ interface RouteRepository {
     /** Синхронизация с 1С: отправить выполненные → получить новые */
     suspend fun sync(): SyncStatus
 
-    /** Обновить показание прибора учёта */
+    /** Обновить показание прибора учёта (по индексам в списках) */
     suspend fun updateTestimony(
         routeUuid: String,
         subscriberUuid: String,
-        deviceKey: String,
-        scaleKey: String,
-        testimonyKey: String,
+        deviceIndex: Int,
+        scaleIndex: Int,
+        testimonyIndex: Int,
         currentValue: String,
         picturePath: String?,
     )

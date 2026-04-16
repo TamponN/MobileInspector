@@ -48,9 +48,9 @@ class InspectionViewModel @Inject constructor(
     val uiState: StateFlow<InspectionUiState> = _uiState.asStateFlow()
 
     fun updateTestimony(
-        deviceKey: String,
-        scaleKey: String,
-        testimonyKey: String,
+        deviceIndex: Int,
+        scaleIndex: Int,
+        testimonyIndex: Int,
         value: String,
         picturePath: String? = null,
     ) {
@@ -58,9 +58,9 @@ class InspectionViewModel @Inject constructor(
             routeRepository.updateTestimony(
                 routeUuid = routeUuid,
                 subscriberUuid = subscriberUuid,
-                deviceKey = deviceKey,
-                scaleKey = scaleKey,
-                testimonyKey = testimonyKey,
+                deviceIndex = deviceIndex,
+                scaleIndex = scaleIndex,
+                testimonyIndex = testimonyIndex,
                 currentValue = value,
                 picturePath = picturePath,
             )

@@ -52,7 +52,10 @@ class RouteRepositoryImpl @Inject constructor(
                     subscribers = closedSubs.map { it.toSendSubscriberDto() },
                 )
             }
-            remote.sendCompletedTasks(baseUrl, session.guid, payload)
+            val sent = remote.sendCompletedTasks(baseUrl, session.guid, payload)
+            if (!sent) {
+                return SyncStatus.ERROR_NO_SERVER
+            }
         }
 
         // 3. Получить актуальные данные из 1С (GET)
@@ -61,7 +64,9 @@ class RouteRepositoryImpl @Inject constructor(
             onSuccess = { dtos ->
                 val sheets = dtos.map { it.toDomain() }
                 dao.deleteAll()
-                dao.upsertAll(sheets.map { it.toEntity() })
+                if (sheets.isNotEmpty()) {
+                    dao.upsertAll(sheets.map { it.toEntity() })
+                }
                 SyncStatus.SUCCESS
             },
             onFailure = { error ->

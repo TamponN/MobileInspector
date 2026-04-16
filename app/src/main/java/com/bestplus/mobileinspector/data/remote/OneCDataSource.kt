@@ -29,11 +29,7 @@ class OneCDataSource @Inject constructor(
             if (!response.isSuccessful) {
                 error("HTTP ${response.code()}")
             }
-            val body = response.body()
-            if (body.isNullOrEmpty()) {
-                error("Empty response")
-            }
-            body
+            response.body().orEmpty()
         }
     }
 

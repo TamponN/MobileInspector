@@ -1,5 +1,6 @@
 package com.bestplus.mobileinspector.ui.login
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bestplus.mobileinspector.domain.model.ServerSettings
@@ -31,6 +32,7 @@ data class LoginUiState(
 class LoginViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val routeRepository: RouteRepository,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginUiState())
@@ -50,6 +52,28 @@ class LoginViewModel @Inject constructor(
                     login = session?.login.orEmpty(),
                 )
             }
+        }
+
+        // Получить данные из QR-сканера (savedStateHandle обновляется при возврате)
+        viewModelScope.launch {
+            savedStateHandle.getStateFlow<String?>("qr_address", null)
+                .collect { address ->
+                    if (!address.isNullOrBlank()) {
+                        val database = savedStateHandle.get<String>("qr_database").orEmpty()
+                        val ssl = savedStateHandle.get<Boolean>("qr_ssl") ?: false
+                        val uuid = savedStateHandle.get<String>("qr_uuid").orEmpty()
+                        _state.update {
+                            it.copy(
+                                address = address,
+                                database = database,
+                                useSsl = ssl,
+                                guid = uuid,
+                            )
+                        }
+                        // Сброс после применения
+                        savedStateHandle.remove<String>("qr_address")
+                    }
+                }
         }
     }
 

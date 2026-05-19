@@ -114,6 +114,9 @@ dependencies {
     implementation("androidx.camera:camera-view:1.4.1")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
 
+    // ML Kit Barcode Scanning (QR-код для настройки подключения)
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
     // TFLite (custom YOLOv8n model for meter OCR)
     implementation("org.tensorflow:tensorflow-lite:2.14.0")
     implementation("org.tensorflow:tensorflow-lite-support:0.4.4")

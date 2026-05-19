@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
+    onScanQr: () -> Unit = {},
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -56,6 +59,7 @@ fun LoginScreen(
         onLoginChange = viewModel::onLoginChange,
         onPasswordChange = viewModel::onPasswordChange,
         onLoginClick = viewModel::onLoginClick,
+        onScanQr = onScanQr,
     )
 }
 
@@ -71,10 +75,21 @@ private fun LoginContent(
     onLoginChange: (String) -> Unit = {},
     onPasswordChange: (String) -> Unit = {},
     onLoginClick: () -> Unit = {},
+    onScanQr: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Обходчик — Подключение") })
+            TopAppBar(
+                title = { Text("Обходчик — Подключение") },
+                actions = {
+                    IconButton(onClick = onScanQr) {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = "Сканировать QR-код",
+                        )
+                    }
+                },
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
@@ -89,6 +104,20 @@ private fun LoginContent(
             Spacer(Modifier.height(16.dp))
 
             Text("Настройки сервера 1С", style = MaterialTheme.typography.titleMedium)
+
+            // QR-кнопка
+            OutlinedButton(
+                onClick = onScanQr,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.QrCodeScanner,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Сканировать QR-код из 1С")
+            }
 
             OutlinedTextField(
                 value = state.address,

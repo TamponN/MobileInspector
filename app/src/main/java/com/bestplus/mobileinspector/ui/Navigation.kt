@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import com.bestplus.mobileinspector.ui.camera.CameraScreen
 import com.bestplus.mobileinspector.ui.inspection.InspectionScreen
 import com.bestplus.mobileinspector.ui.login.LoginScreen
+import com.bestplus.mobileinspector.ui.login.QrScannerScreen
 import com.bestplus.mobileinspector.ui.map.MapScreen
 import com.bestplus.mobileinspector.ui.routes.RouteListScreen
 import com.bestplus.mobileinspector.ui.routes.SubscriberListScreen
@@ -28,6 +29,7 @@ object Routes {
     const val MAP = "routes/{routeUuid}/map"
     const val CAMERA = "camera/{routeUuid}/{subscriberUuid}/{deviceKey}/{scaleKey}/{testimonyKey}"
     const val SETTINGS = "settings"
+    const val QR_SCANNER = "qr_scanner"
 }
 
 @Composable
@@ -42,6 +44,31 @@ fun InspectorNavHost() {
                     navController.navigate(Routes.ROUTE_LIST) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
+                },
+                onScanQr = {
+                    navController.navigate(Routes.QR_SCANNER)
+                },
+            )
+        }
+
+        composable(Routes.QR_SCANNER) {
+            QrScannerScreen(
+                onBack = { navController.popBackStack() },
+                onScanned = { qrData ->
+                    // Передаём данные обратно в LoginScreen через savedStateHandle
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("qr_address", qrData.address)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("qr_database", qrData.database)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("qr_ssl", qrData.ssl)
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("qr_uuid", qrData.uuid)
+                    navController.popBackStack()
                 },
             )
         }

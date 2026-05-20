@@ -1,8 +1,8 @@
 package com.bestplus.mobileinspector.ui.login
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.util.Log
 import com.bestplus.mobileinspector.domain.model.ServerSettings
 import com.bestplus.mobileinspector.domain.model.SyncStatus
 import com.bestplus.mobileinspector.domain.model.UserSession
@@ -32,7 +32,6 @@ data class LoginUiState(
 class LoginViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val routeRepository: RouteRepository,
-    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginUiState())
@@ -40,7 +39,6 @@ class LoginViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            // Загрузить сохранённые настройки
             val settings = settingsRepository.getServerSettings()
             val session = settingsRepository.getUserSession()
             _state.update {
@@ -53,27 +51,12 @@ class LoginViewModel @Inject constructor(
                 )
             }
         }
+    }
 
-        // Получить данные из QR-сканера (savedStateHandle обновляется при возврате)
-        viewModelScope.launch {
-            savedStateHandle.getStateFlow<String?>("qr_address", null)
-                .collect { address ->
-                    if (!address.isNullOrBlank()) {
-                        val database = savedStateHandle.get<String>("qr_database").orEmpty()
-                        val ssl = savedStateHandle.get<Boolean>("qr_ssl") ?: false
-                        val uuid = savedStateHandle.get<String>("qr_uuid").orEmpty()
-                        _state.update {
-                            it.copy(
-                                address = address,
-                                database = database,
-                                useSsl = ssl,
-                                guid = uuid,
-                            )
-                        }
-                        // Сброс после применения
-                        savedStateHandle.remove<String>("qr_address")
-                    }
-                }
+    fun applyQrData(address: String, database: String, ssl: Boolean, uuid: String) {
+        Log.d("LoginViewModel", "applyQrData: address=$address database=$database ssl=$ssl uuid=$uuid")
+        _state.update {
+            it.copy(address = address, database = database, useSsl = ssl, guid = uuid)
         }
     }
 

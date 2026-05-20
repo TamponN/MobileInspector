@@ -1,7 +1,11 @@
 package com.bestplus.mobileinspector.ui
 
+import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.bestplus.mobileinspector.ui.login.LoginViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -38,8 +42,27 @@ fun InspectorNavHost() {
 
     NavHost(navController = navController, startDestination = Routes.LOGIN) {
 
-        composable(Routes.LOGIN) {
+        composable(Routes.LOGIN) { backStackEntry ->
+            val viewModel: LoginViewModel = hiltViewModel()
+
+            // backStackEntry.savedStateHandle — это тот же объект, в который
+            // QR_SCANNER пишет данные через previousBackStackEntry.savedStateHandle.
+            val qrAddress by backStackEntry.savedStateHandle
+                .getStateFlow("qr_address", "")
+                .collectAsStateWithLifecycle()
+
+            LaunchedEffect(qrAddress) {
+                if (qrAddress.isNotBlank()) {
+                    val database = backStackEntry.savedStateHandle.get<String>("qr_database").orEmpty()
+                    val ssl = backStackEntry.savedStateHandle.get<Boolean>("qr_ssl") ?: false
+                    val uuid = backStackEntry.savedStateHandle.get<String>("qr_uuid").orEmpty()
+                    viewModel.applyQrData(qrAddress, database, ssl, uuid)
+                    backStackEntry.savedStateHandle.remove<String>("qr_address")
+                }
+            }
+
             LoginScreen(
+                viewModel = viewModel,
                 onLoginSuccess = {
                     navController.navigate(Routes.ROUTE_LIST) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
@@ -55,19 +78,15 @@ fun InspectorNavHost() {
             QrScannerScreen(
                 onBack = { navController.popBackStack() },
                 onScanned = { qrData ->
+                    Log.d("Navigation", "onScanned called: $qrData")
+                    val prev = navController.previousBackStackEntry
+                    Log.d("Navigation", "previousBackStackEntry=${prev?.destination?.route}")
                     // Передаём данные обратно в LoginScreen через savedStateHandle
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("qr_address", qrData.address)
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("qr_database", qrData.database)
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("qr_ssl", qrData.ssl)
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("qr_uuid", qrData.uuid)
+                    prev?.savedStateHandle?.set("qr_address", qrData.address)
+                    prev?.savedStateHandle?.set("qr_database", qrData.database)
+                    prev?.savedStateHandle?.set("qr_ssl", qrData.ssl)
+                    prev?.savedStateHandle?.set("qr_uuid", qrData.uuid)
+                    Log.d("Navigation", "savedStateHandle values set, calling popBackStack")
                     navController.popBackStack()
                 },
             )

@@ -2,6 +2,7 @@ package com.bestplus.mobileinspector.ui.login
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -34,6 +35,7 @@ import com.google.mlkit.vision.common.InputImage
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Структура QR-кода, генерируемого со стороны 1С.
@@ -48,6 +50,7 @@ data class QrConnectionData(
 )
 
 private val qrJson = Json { ignoreUnknownKeys = true }
+private const val TAG = "QrScanner"
 
 /**
  * Полноэкранный сканер QR-кода для настройки подключения к 1С.
@@ -76,9 +79,12 @@ fun QrScannerScreen(
         if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    // Флаг: уже обработали один QR, не обрабатываем повторно
-    var scanned by remember { mutableStateOf(false) }
+    // Флаг: уже обработали один QR, не обрабатываем повторно.
+    // AtomicBoolean нужен потому что проверка идёт из фонового потока executor.
+    val scanned = remember { AtomicBoolean(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
+    // Всегда ссылаемся на актуальную лямбду, даже если factory создан раньше.
+    val currentOnScanned by rememberUpdatedState(onScanned)
 
     Scaffold(
         topBar = {
@@ -134,7 +140,7 @@ fun QrScannerScreen(
                                 .build()
 
                             imageAnalysis.setAnalyzer(executor) { imageProxy ->
-                                if (scanned) {
+                                if (scanned.get()) {
                                     imageProxy.close()
                                     return@setAnalyzer
                                 }
@@ -151,14 +157,16 @@ fun QrScannerScreen(
                                                     it.rawValue != null
                                             }
                                             qrBarcode?.rawValue?.let { raw ->
-                                                if (!scanned) {
-                                                    scanned = true
+                                                Log.d(TAG, "QR detected, raw='$raw'")
+                                                if (scanned.compareAndSet(false, true)) {
                                                     val parsed = parseQrPayload(raw)
                                                     if (parsed != null) {
-                                                        onScanned(parsed)
+                                                        Log.d(TAG, "Parsed OK: $parsed")
+                                                        currentOnScanned(parsed)
                                                     } else {
-                                                        errorText = "Неверный формат QR-кода"
-                                                        scanned = false
+                                                        Log.e(TAG, "Parse failed for raw='$raw'")
+                                                        errorText = "Неверный формат QR-кода:\n$raw"
+                                                        scanned.set(false)
                                                     }
                                                 }
                                             }
@@ -271,7 +279,9 @@ private fun QrAimOverlay(modifier: Modifier = Modifier) {
 private fun parseQrPayload(raw: String): QrConnectionData? {
     // Попытка 1: JSON
     if (raw.trimStart().startsWith("{")) {
-        return runCatching { qrJson.decodeFromString<QrConnectionData>(raw) }.getOrNull()
+        val result = runCatching { qrJson.decodeFromString<QrConnectionData>(raw) }
+        result.exceptionOrNull()?.let { Log.e(TAG, "JSON parse error: $it") }
+        return result.getOrNull()
     }
     // Попытка 2: URI-схема
     if (raw.startsWith("mobileinspector://connect")) {
@@ -284,5 +294,6 @@ private fun parseQrPayload(raw: String): QrConnectionData? {
             QrConnectionData(address = address, database = database, ssl = ssl, uuid = uuid)
         }.getOrNull()
     }
+    Log.e(TAG, "Unknown QR format, raw='$raw'")
     return null
 }

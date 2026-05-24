@@ -47,6 +47,7 @@ android {
 
     androidResources {
         noCompress += "tflite"
+        noCompress += "onnx"
     }
 }
 
@@ -117,9 +118,12 @@ dependencies {
     // ML Kit Barcode Scanning (QR-код для настройки подключения)
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
 
-    // TFLite (custom YOLOv8n model for meter OCR)
+    // TFLite (YOLO models)
     implementation("org.tensorflow:tensorflow-lite:2.14.0")
     implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
+
+    // ONNX Runtime (RF-DETR models — better float16 + transformer support than TFLite)
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")

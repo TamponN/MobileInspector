@@ -21,4 +21,7 @@ interface SettingsRepository {
 
     suspend fun getSyncIntervalMinutes(): Int
     suspend fun setSyncIntervalMinutes(minutes: Int)
+
+    suspend fun getSelectedModelFileName(): String
+    suspend fun saveSelectedModelFileName(fileName: String)
 }

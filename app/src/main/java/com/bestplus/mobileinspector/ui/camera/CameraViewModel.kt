@@ -5,6 +5,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bestplus.mobileinspector.domain.repository.RouteRepository
+import com.bestplus.mobileinspector.domain.repository.SettingsRepository
+import com.bestplus.mobileinspector.service.ModelType
 import com.bestplus.mobileinspector.service.TextRecognitionHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -27,6 +29,7 @@ data class CameraUiState(
 class CameraViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val routeRepository: RouteRepository,
+    private val settingsRepository: SettingsRepository,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -44,7 +47,11 @@ class CameraViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isProcessing = true, error = null) }
             try {
-                val recognized = TextRecognitionHelper.recognizeTestimony(context, photoFile)
+                val modelFileName = settingsRepository.getSelectedModelFileName()
+                val model = ModelType.fromFileName(modelFileName)
+                val recognized = TextRecognitionHelper.recognizeTestimony(
+                    context, photoFile, model,
+                )
                 _uiState.update { it.copy(recognizedText = recognized) }
 
                 // Для actcheck — только OCR, без сохранения в репозиторий
@@ -60,6 +67,8 @@ class CameraViewModel @Inject constructor(
                     )
                 }
                 _uiState.update { it.copy(isProcessing = false, photoSaved = true) }
+            } catch (e: UnsupportedOperationException) {
+                _uiState.update { it.copy(isProcessing = false, error = e.message) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isProcessing = false, error = "Ошибка распознавания: ${e.message}") }
             }

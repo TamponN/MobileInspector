@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -147,9 +148,16 @@ private fun SubscriberInfoCard(subscriber: com.bestplus.mobileinspector.domain.m
                 text = subscriber.displayName,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(Modifier.height(4.dp))
-            Text("Адрес: ${subscriber.address.fullAddress}", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "Адрес: ${subscriber.address.fullAddress}",
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text("Л/С: ${subscriber.subscriber.personalAccount}", style = MaterialTheme.typography.bodySmall)
             if (subscriber.subscriber.phone.isNotBlank()) {
                 Text("Тел: ${subscriber.subscriber.phone}", style = MaterialTheme.typography.bodySmall)
@@ -183,10 +191,14 @@ private fun DeviceCard(
                 text = "${device.nameService} — ${device.name}",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = "Зав. № ${device.factoryNumber}",
                 style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
 
             Spacer(Modifier.height(8.dp))
@@ -264,6 +276,8 @@ private fun ScaleSection(
                 text = "${scale.nameScale} (${scale.unitType})",
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(vertical = 4.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
 
@@ -297,11 +311,15 @@ private fun TestimonyRow(
             Text(
                 text = testimony.nameTariff.ifBlank { "Тариф ${testimony.index}" },
                 style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = "Пред: ${testimony.previousTestimony}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
 

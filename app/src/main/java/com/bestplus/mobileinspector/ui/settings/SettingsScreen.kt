@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import com.bestplus.mobileinspector.service.ModelType
 import com.bestplus.mobileinspector.ui.theme.InspectorTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onLogout: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -40,6 +42,10 @@ fun SettingsScreen(
         }
     }
 
+    LaunchedEffect(state.isLoggedOut) {
+        if (state.isLoggedOut) onLogout()
+    }
+
     SettingsContent(
         state = state,
         snackbarHostState = snackbarHostState,
@@ -49,6 +55,7 @@ fun SettingsScreen(
         onSslToggle = viewModel::onSslToggle,
         onGuidChange = viewModel::onGuidChange,
         onSyncIntervalChange = viewModel::onSyncIntervalChange,
+        onModelChange = viewModel::onModelChange,
         onSave = viewModel::save,
         onLogout = viewModel::logout,
     )
@@ -65,6 +72,7 @@ private fun SettingsContent(
     onSslToggle: (Boolean) -> Unit = {},
     onGuidChange: (String) -> Unit = {},
     onSyncIntervalChange: (Int) -> Unit = {},
+    onModelChange: (ModelType) -> Unit = {},
     onSave: () -> Unit = {},
     onLogout: () -> Unit = {},
 ) {
@@ -137,6 +145,31 @@ private fun SettingsContent(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Text("Распознавание показаний", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Выберите модель распознавания цифр счётчика",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                ModelType.entries.forEach { model ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = state.selectedModel == model,
+                            onClick = { onModelChange(model) },
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(model.displayName, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
 
             Spacer(Modifier.height(16.dp))
 

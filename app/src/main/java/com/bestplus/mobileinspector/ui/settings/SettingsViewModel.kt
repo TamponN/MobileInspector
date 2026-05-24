@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bestplus.mobileinspector.domain.model.ServerSettings
 import com.bestplus.mobileinspector.domain.repository.SettingsRepository
+import com.bestplus.mobileinspector.service.ModelType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +19,9 @@ data class SettingsUiState(
     val useSsl: Boolean = false,
     val guid: String = "",
     val syncInterval: Int = 10,
+    val selectedModel: ModelType = ModelType.YOLO_FULL,
     val isSaved: Boolean = false,
+    val isLoggedOut: Boolean = false,
 )
 
 @HiltViewModel
@@ -33,6 +36,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val settings = settingsRepository.getServerSettings()
             val interval = settingsRepository.getSyncIntervalMinutes()
+            val modelFileName = settingsRepository.getSelectedModelFileName()
             _state.update {
                 it.copy(
                     address = settings.address,
@@ -40,6 +44,7 @@ class SettingsViewModel @Inject constructor(
                     useSsl = settings.useSsl,
                     guid = settings.guid,
                     syncInterval = interval,
+                    selectedModel = ModelType.fromFileName(modelFileName),
                 )
             }
         }
@@ -50,6 +55,7 @@ class SettingsViewModel @Inject constructor(
     fun onSslToggle(v: Boolean) = _state.update { it.copy(useSsl = v) }
     fun onGuidChange(v: String) = _state.update { it.copy(guid = v) }
     fun onSyncIntervalChange(v: Int) = _state.update { it.copy(syncInterval = v) }
+    fun onModelChange(model: ModelType) = _state.update { it.copy(selectedModel = model) }
 
     fun save() {
         viewModelScope.launch {
@@ -63,6 +69,7 @@ class SettingsViewModel @Inject constructor(
                 ),
             )
             settingsRepository.setSyncIntervalMinutes(s.syncInterval)
+            settingsRepository.saveSelectedModelFileName(s.selectedModel.fileName)
             _state.update { it.copy(isSaved = true) }
         }
     }
@@ -70,6 +77,7 @@ class SettingsViewModel @Inject constructor(
     fun logout() {
         viewModelScope.launch {
             settingsRepository.clearUserSession()
+            _state.update { it.copy(isLoggedOut = true) }
         }
     }
 

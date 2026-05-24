@@ -223,6 +223,49 @@ fun CameraScreen(
                 }
             }
 
+            // Nothing recognized — allow retake
+            else if (uiState.photoSaved && uiState.recognizedText.isBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.75f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                "Ничего не распознано",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Попробуйте сфотографировать ещё раз",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(24.dp))
+                            Button(
+                                onClick = { viewModel.resetForRetake() },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Переснять")
+                            }
+                        }
+                    }
+                }
+            }
+
             // OCR result overlay (while processing or empty result)
             else if (uiState.recognizedText.isNotBlank() && !uiState.isProcessing && !uiState.photoSaved) {
                 Card(
@@ -282,24 +325,27 @@ fun CameraScreen(
 
             // Capture button (hidden when confirmation is shown)
             if (!uiState.photoSaved) {
-                FloatingActionButton(
-                    onClick = {
-                        if (!uiState.isProcessing) {
-                            capturePhoto(context, imageCapture) { file ->
-                                viewModel.onPhotoCaptured(file)
-                            }
-                        }
-                    },
+                Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 32.dp),
-                    containerColor = MaterialTheme.colorScheme.primary,
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "Сделать фото",
-                        modifier = Modifier.size(32.dp),
-                    )
+                    FloatingActionButton(
+                        onClick = {
+                            if (!uiState.isProcessing) {
+                                capturePhoto(context, imageCapture) { file ->
+                                    viewModel.onPhotoCaptured(file)
+                                }
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CameraAlt,
+                            contentDescription = "Сделать фото",
+                            modifier = Modifier.size(32.dp),
+                        )
+                    }
                 }
             }
         }

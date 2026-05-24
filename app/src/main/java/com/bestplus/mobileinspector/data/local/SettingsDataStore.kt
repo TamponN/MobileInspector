@@ -37,6 +37,7 @@ class SettingsDataStore @Inject constructor(
         val LOGIN = stringPreferencesKey("login")
         val TOKEN = stringPreferencesKey("token")
         val SYNC_INTERVAL = intPreferencesKey("sync_interval_minutes")
+        val SELECTED_MODEL = stringPreferencesKey("selected_model")
     }
 
     // --- Server Settings ---
@@ -99,6 +100,15 @@ class SettingsDataStore @Inject constructor(
     override suspend fun setSyncIntervalMinutes(minutes: Int) {
         context.dataStore.edit { prefs ->
             prefs[Keys.SYNC_INTERVAL] = minutes
+        }
+    }
+
+    override suspend fun getSelectedModelFileName(): String =
+        context.dataStore.data.first()[Keys.SELECTED_MODEL] ?: ""
+
+    override suspend fun saveSelectedModelFileName(fileName: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.SELECTED_MODEL] = fileName
         }
     }
 }

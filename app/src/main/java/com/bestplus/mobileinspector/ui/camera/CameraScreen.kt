@@ -357,8 +357,11 @@ private fun capturePhoto(
     imageCapture: ImageCapture,
     onCaptured: (File) -> Unit,
 ) {
+    // Постоянное хранилище (filesDir) — не очищается системой, не требует разрешений.
+    // Важно для офлайна: фото должно дожить до отправки в 1С.
+    val photosDir = File(context.filesDir, "testimony_photos").apply { mkdirs() }
     val photoFile = File(
-        context.externalCacheDir,
+        photosDir,
         "testimony_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.jpg",
     )
     val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()

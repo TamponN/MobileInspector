@@ -51,7 +51,11 @@ data class SendMeteringDeviceDto(
 
 @Serializable
 data class SendActCheckDto(
-    @SerialName("DateTimeCheck") val dateTimeCheck: String = "",
+    // 1С парсит эти поля как дату (ФорматДатыJSON.ISO), поэтому дефолт должен быть
+    // валидной ISO-датой, а не пустой строкой — иначе ПрочитатьJSON падает с
+    // "Представление даты имеет неверный формат". При IsCreateAct=false значение
+    // игнорируется бизнес-логикой 1С (акты создаются только под IsCreateAct=true).
+    @SerialName("DateTimeCheck") val dateTimeCheck: String = "1970-01-01T00:00:00",
     @SerialName("RoomCheck") val roomCheck: String = "",
     @SerialName("SealIntegrity") val sealIntegrity: String = "",
     @SerialName("Revealed") val revealed: String = "",
@@ -59,13 +63,13 @@ data class SendActCheckDto(
     @SerialName("ConsentTestimony") val consentTestimony: String = "",
     @SerialName("СauseNoAgreeCheck") val causeNoAgreeCheck: String = "",
     @SerialName("UnauthorizedPersonsCheck") val unauthorizedPersonsCheck: String = "",
-    @SerialName("VerificationDate") val verificationDate: String = "",
+    @SerialName("VerificationDate") val verificationDate: String = "1970-01-01T00:00:00",
     @SerialName("IsCreateAct") val isCreateAct: Boolean = false,
 )
 
 @Serializable
 data class SendActAccessDto(
-    @SerialName("DateTimeAccess") val dateTimeAccess: String = "",
+    @SerialName("DateTimeAccess") val dateTimeAccess: String = "1970-01-01T00:00:00",
     @SerialName("RoomAccess") val roomAccess: String = "",
     @SerialName("AgreeAccess") val agreeAccess: String = "",
     @SerialName("СauseNoAgreeAccess") val causeNoAgreeAccess: String = "",

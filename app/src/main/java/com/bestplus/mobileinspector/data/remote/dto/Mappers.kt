@@ -100,30 +100,49 @@ fun TestimonyDto.toDomain(): Testimony = Testimony(
     y = y,
 )
 
-/** Domain → DTO для отправки (InfoSubscriber → SendInfoDto часть) */
-fun InfoSubscriber.toSendSubscriberDto(): SendSubscriberDto = SendSubscriberDto(
-    subscriber = SendSubDto(
-        phone = subscriber.phone,
-        uuidAccount = subscriber.uuidAccount,
-        isCreateAct = meteringDevices.any { it.actCheck?.isCreateAct == true },
-        isCreateActAccess = meteringDevices.any { it.actAccess?.isCreateActAccess == true },
-    ),
-    datePayment = LocalDateTime.now().toString(),
-    amountOfPayment = "0",
-    meteringDevices = meteringDevices.map { it.toSendDto() },
-)
+/** Domain → DTO для отправки (InfoSubscriber → SendInfoDto часть)
+ *
+ *  [encodeImage] — suspend-функция кодирования пути к фото в base64.
+ *  Передаётся параметром, чтобы маппер оставался чистым от файловой системы
+ *  (реальный ImageEncoder подключается в репозитории). По умолчанию возвращает
+ *  пустую строку — фото не прикладывается.
+ */
+suspend fun InfoSubscriber.toSendSubscriberDto(
+    encodeImage: suspend (String?) -> String = { "" },
+): SendSubscriberDto {
+    // toSendDto — suspend (кодирует фото), List.map не допускает suspend-лямбду.
+    val devices = ArrayList<SendMeteringDeviceDto>(meteringDevices.size)
+    for (dev in meteringDevices) devices += dev.toSendDto(encodeImage)
+    return SendSubscriberDto(
+        subscriber = SendSubDto(
+            phone = subscriber.phone,
+            uuidAccount = subscriber.uuidAccount,
+            isCreateAct = meteringDevices.any { it.actCheck?.isCreateAct == true },
+            isCreateActAccess = meteringDevices.any { it.actAccess?.isCreateActAccess == true },
+        ),
+        datePayment = LocalDateTime.now().toString(),
+        amountOfPayment = "0",
+        meteringDevices = devices,
+    )
+}
 
 /** MeteringDevice → SendMeteringDeviceDto */
-fun MeteringDevice.toSendDto(): SendMeteringDeviceDto = SendMeteringDeviceDto(
-    numberDevice = number,
-    factoryNumber = factoryNumber,
-    nameService = nameService,
-    uuidDevice = uuidDevice,
-    countingPointKey = countingPointKey,
-    actCheck = actCheck?.toSendDto() ?: SendActCheckDto(),
-    actAccess = actAccess?.toSendDto() ?: SendActAccessDto(),
-    scales = scales.map { it.toSendDto() },
-)
+suspend fun MeteringDevice.toSendDto(
+    encodeImage: suspend (String?) -> String,
+): SendMeteringDeviceDto {
+    val sendScales = ArrayList<SendScaleDto>(scales.size)
+    for (scale in scales) sendScales += scale.toSendDto(encodeImage)
+    return SendMeteringDeviceDto(
+        numberDevice = number,
+        factoryNumber = factoryNumber,
+        nameService = nameService,
+        uuidDevice = uuidDevice,
+        countingPointKey = countingPointKey,
+        actCheck = actCheck?.toSendDto() ?: SendActCheckDto(),
+        actAccess = actAccess?.toSendDto() ?: SendActAccessDto(),
+        scales = sendScales,
+    )
+}
 
 fun ActCheck.toSendDto(): SendActCheckDto = SendActCheckDto(
     dateTimeCheck = dateTimeCheck.toString(),
@@ -147,17 +166,27 @@ fun ActAccess.toSendDto(): SendActAccessDto = SendActAccessDto(
     isCreateActAccess = isCreateActAccess,
 )
 
-fun Scale.toSendDto(): SendScaleDto = SendScaleDto(
-    unitType = unitType,
-    uuidScaleDevices = uuidScaleDevices,
-    testimonies = testimonies.map { it.toSendDto() },
-)
+suspend fun Scale.toSendDto(
+    encodeImage: suspend (String?) -> String,
+): SendScaleDto {
+    val sendTestimonies = ArrayList<SendTestimonyDto>(testimonies.size)
+    for (t in testimonies) sendTestimonies += t.toSendDto(encodeImage)
+    return SendScaleDto(
+        unitType = unitType,
+        uuidScaleDevices = uuidScaleDevices,
+        testimonies = sendTestimonies,
+    )
+}
 
-fun Testimony.toSendDto(): SendTestimonyDto = SendTestimonyDto(
+suspend fun Testimony.toSendDto(
+    encodeImage: suspend (String?) -> String,
+): SendTestimonyDto = SendTestimonyDto(
     currentTestimony = currentTestimony.toIntOrNull() ?: 0,
     dateTimeCurrentTestimony = dateTimeCurrent.toString(),
     index = index,
-    image = "", // Will be set from photo encoder
+    // Фото кодируется из локального файла (Testimony.picturePath) в base64.
+    // 1С прикладывает файл только при непустом Image (см. ПрисоединитьМассивФайлов).
+    image = encodeImage(picturePath),
     nameTariff = nameTariff,
     uuidTariffZone = uuidTariffZone,
     coup = coup,

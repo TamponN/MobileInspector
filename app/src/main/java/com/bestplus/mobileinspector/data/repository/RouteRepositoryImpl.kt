@@ -5,11 +5,13 @@ import com.bestplus.mobileinspector.data.local.entity.toDomain
 import com.bestplus.mobileinspector.data.local.entity.toEntity
 import com.bestplus.mobileinspector.data.remote.OneCDataSource
 import com.bestplus.mobileinspector.data.remote.dto.SendInfoDto
+import com.bestplus.mobileinspector.data.remote.dto.SendSubscriberDto
 import com.bestplus.mobileinspector.data.remote.dto.toDomain
 import com.bestplus.mobileinspector.data.remote.dto.toSendSubscriberDto
 import com.bestplus.mobileinspector.domain.model.*
 import com.bestplus.mobileinspector.domain.repository.RouteRepository
 import com.bestplus.mobileinspector.domain.repository.SettingsRepository
+import com.bestplus.mobileinspector.service.ImageEncoder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -24,6 +26,7 @@ class RouteRepositoryImpl @Inject constructor(
     private val dao: RouteSheetDao,
     private val remote: OneCDataSource,
     private val settings: SettingsRepository,
+    private val imageEncoder: ImageEncoder,
 ) : RouteRepository {
 
     override fun observeRouteSheets(): Flow<List<RouteSheet>> =
@@ -40,16 +43,23 @@ class RouteRepositoryImpl @Inject constructor(
             route.subscribers.any { it.statusTask == "Выполнена" }
         }
 
-        // 2. Отправить в 1С (POST)
+        // 2. Отправить в 1С (POST). Фото кодируются в base64 внутри маппера.
         if (completed.isNotEmpty()) {
-            val payload = completed.map { route ->
+            // toSendSubscriberDto — suspend (кодирует фото), поэтому собираем
+            // payload обычными циклами: List.map не допускает suspend-лямбду.
+            val payload = ArrayList<SendInfoDto>(completed.size)
+            for (route in completed) {
                 val closedSubs = route.subscribers.filter { it.statusTask == "Выполнена" }
-                SendInfoDto(
+                val sendSubs = ArrayList<SendSubscriberDto>(closedSubs.size)
+                for (sub in closedSubs) {
+                    sendSubs += sub.toSendSubscriberDto(imageEncoder::encodeForUpload)
+                }
+                payload += SendInfoDto(
                     key = route.key,
                     uuidDocument = route.uuidDocument,
                     typeSubscriber = route.subscribers.firstOrNull()?.subscriber?.typeSubscriber ?: "1",
                     closeListRoute = route.isFullyClosed,
-                    subscribers = closedSubs.map { it.toSendSubscriberDto() },
+                    subscribers = sendSubs,
                 )
             }
             val sent = remote.sendCompletedTasks(baseUrl, session.guid, payload)
@@ -58,15 +68,22 @@ class RouteRepositoryImpl @Inject constructor(
             }
         }
 
-        // 3. Получить актуальные данные из 1С (GET)
+        // 3. Получить актуальные данные из 1С (GET) и объединить с локальными правками
         val result = remote.fetchRouteSheets(baseUrl, session.guid)
         return result.fold(
             onSuccess = { dtos ->
-                val sheets = dtos.map { it.toDomain() }
-                dao.deleteAll()
-                if (sheets.isNotEmpty()) {
-                    dao.upsertAll(sheets.map { it.toEntity() })
+                val serverSheets = dtos.map { it.toDomain() }
+                // Сервер — источник истины по составу/справке; локальные правки
+                // (показания, фото, акты, статус) сохраняем через послойный merge.
+                val localByUuid = dao.getAll().associateBy { it.uuidDocument }
+                val merged = serverSheets.map { server ->
+                    val localMatch = localByUuid[server.uuidDocument]?.toDomain()
+                    RouteMerger.merge(server, localMatch)
                 }
+                dao.upsertAll(merged.map { it.toEntity() })
+                // Убираем маршруты, исчезнувшие с сервера (завершённые/отозванные).
+                // Безопасно: их правки уже отправлены на шаге POST выше.
+                dao.deleteNotIn(merged.map { it.uuidDocument })
                 SyncStatus.SUCCESS
             },
             onFailure = { error ->

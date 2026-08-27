@@ -8,9 +8,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Matrix
 import android.util.Log
-import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.tensorflow.lite.Interpreter
@@ -77,7 +75,7 @@ object TextRecognitionHelper {
     ): String = withContext(Dispatchers.Default) {
         val rawBitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
             ?: throw IllegalArgumentException("Не удалось загрузить изображение")
-        val bitmap = fixRotation(rawBitmap, imageFile)
+        val bitmap = ImageUtils.applyExifRotation(rawBitmap, imageFile)
 
         Log.d(TAG, "=== РАСПОЗНАВАНИЕ [${modelType.displayName}] ===")
         Log.d(TAG, "Фото: ${rawBitmap.width}x${rawBitmap.height} → ${bitmap.width}x${bitmap.height}")
@@ -315,21 +313,6 @@ object TextRecognitionHelper {
             drawBitmap(scaled, padX.toFloat(), padY.toFloat(), null)
         }
         return Pair(result, Unit)
-    }
-
-    private fun fixRotation(bitmap: Bitmap, imageFile: File): Bitmap {
-        val degrees = when (ExifInterface(imageFile.absolutePath).getAttributeInt(
-            ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL,
-        )) {
-            ExifInterface.ORIENTATION_ROTATE_90  -> 90f
-            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-            else -> 0f
-        }
-        Log.d(TAG, "EXIF rotation: ${degrees.toInt()}°")
-        if (degrees == 0f) return bitmap
-        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height,
-            Matrix().apply { postRotate(degrees) }, true)
     }
 
     // HWC float32 buffer for TFLite

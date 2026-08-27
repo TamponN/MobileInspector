@@ -35,6 +35,10 @@ interface RouteSheetDao {
     @Query("DELETE FROM route_sheets")
     suspend fun deleteAll()
 
+    /** Удаляет маршруты, отсутствующие в keepUuids (сохранив локальные правки для актуальных). */
+    @Query("DELETE FROM route_sheets WHERE uuidDocument NOT IN (:keepUuids)")
+    suspend fun deleteNotIn(keepUuids: List<String>)
+
     @Query("DELETE FROM route_sheets WHERE statusTask = 'Закрыт'")
     suspend fun deleteClosed()
 }
